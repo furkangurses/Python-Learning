@@ -1,4 +1,4 @@
-![Topology Diagram]()
+![Topology Diagram](https://github.com/furkangurses/Python-for-DevOps/blob/main/python.PNG?raw=true)
 
 # 🐍 Python (Py4E): A DevOps Evolution
 
