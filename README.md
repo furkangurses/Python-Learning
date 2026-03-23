@@ -1,4 +1,4 @@
-
+![Topology Diagram]()
 
 # 🐍 Python (Py4E): A DevOps Evolution
 
