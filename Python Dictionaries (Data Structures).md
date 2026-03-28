@@ -1,3 +1,85 @@
+# 📧 Email Traffic Analyzer: Prolific Committer Identification
+
+This Python utility processes mailbox log files (`mbox` format) to identify the most frequent email sender. It demonstrates high-efficiency data parsing, histogram generation using hash maps (dictionaries), and a robust maximum-value discovery algorithm.
+
+## 🛠️ Technical Logic & Architecture
+
+The script follows a 3-stage data pipeline designed for scalability and performance:
+
+1.  **Data Extraction (Filtering & Parsing):** The script scans the file line-by-line. It filters for lines starting with the specific sentinel string `'From '`. This avoids noise from header fields like `From:` and ensures we only capture the actual envelope sender.
+2.  **Data Transformation (The Histogram Pattern):** Using a Python dictionary, the script maps email addresses (keys) to their occurrence counts (values). We utilize the **`.get()` idiom**, which provides $O(1)$ average-time complexity for lookups and updates, making the script efficient even for files with millions of entries.
+3.  **Data Analysis (Maximum Loop):** After the histogram is built, we perform a "Max-Search" by iterating through the dictionary's items. We use a `None` initialization strategy to handle edge cases where the file might be empty or counts might be zero.
+
+---
+
+## 💻 Implementation
+
+```python
+name = input("Enter file:")
+if len(name) < 1:
+    name = "mbox-short.txt"
+
+try:
+    handle = open(name)
+except FileNotFoundError:
+    print(f"Error: The file '{name}' was not found.")
+    quit()
+
+counts = dict()
+
+# Stage 1 & 2: Parsing and Histogram Generation
+for line in handle:
+    # Filter for specific sender lines
+    if not line.startswith('From '): 
+        continue
+    
+    # Tokenize the line and extract the 2nd element (index 1)
+    words = line.split()
+    email = words[1]
+    
+    # Update the frequency map using the .get() idiom
+    counts[email] = counts.get(email, 0) + 1
+
+# Stage 3: Maximum Loop Analysis
+big_count = None
+big_email = None
+
+for email, count in counts.items():
+    # Logic: If it's the first item OR current count is higher than the record
+    if big_count is None or count > big_count:
+        big_email = email
+        big_count = count
+
+# Output Final Result
+if big_email is not None:
+    print(f"Most Prolific Sender: {big_email} {big_count}")
+```
+
+## 🔬 Code Deep Dive
+### 1. The `startswith('From ')` Sentinel
+- In the `mbox` standard, lines starting with `From`  (with a trailing space) indicate the start of a new message block. By targeting this exact string, we ensure the script ignores sub-headers and only counts unique message transmissions.
+
+### 2. The `.get()` Advantage
+- Instead of using a traditional `if-else` block to check if a key exists:
+```Python
+# Traditional (Slower/Verbose)
+if email not in counts:
+    counts[email] = 1
+else:
+    counts[email] += 1
+```
+
+- `We use counts.get(email, 0) + 1`. This is the Pythonic Idiom for counters. It is more concise and highly optimized at the C-level in the Python interpreter.
+
+### 3. The `None` Guard
+- By initializing `big_count` as `None`, the script is logically sound. The condition `if big_count is None` ensures that the very first email processed automatically becomes the "current leader," preventing errors that might occur if we initialized with a static number like `0`.
+
+## 📈 Performance
+
+- Time Complexity: $O(N)$ where $N$ is the number of lines in the file. Each line is visited exactly once.
+- Space Complexity: $O(K)$ where $K$ is the number of unique email addresses found.
+
+
 # Python Dictionaries (Data Structures)
 
 ## 📌 Overview
