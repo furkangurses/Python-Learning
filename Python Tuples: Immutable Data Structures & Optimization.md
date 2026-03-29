@@ -97,3 +97,74 @@ for val, key in lst[:10]:
 # Create (v, k) tuples for all items and sort them in one line
 lst = sorted([(v, k) for k, v in counts.items()], reverse=True)
 ```
+
+---
+
+# Mbox Email Time Distribution Analyzer
+
+## 📌 Overview
+This lightweight Python utility parses standard `mbox` email log files to analyze and extract the hourly distribution of messages. It scans through the email routing data, isolates the commit time for each message, and generates a chronologically sorted histogram displaying the volume of emails processed per hour.
+
+## ⚙️ Core Concepts & Data Structures
+This script demonstrates the efficient use of foundational Python data structures to handle data parsing and aggregation:
+* **Strings:** Sequential splitting for data extraction.
+* **Dictionaries (`dict`):** Key-value mapping for $O(1)$ lookup time and frequency counting (Histogram pattern).
+* **Tuples (`tuple`):** Immutable pairs used for secure state transfer and sorting.
+
+## 🚀 Usage
+
+### Prerequisites
+* Python 3.x installed on your local machine.
+* A valid `mbox` formatted text file (e.g., `mbox-short.txt`) in the same directory as the script.
+
+### Execution
+Run the script via your terminal:
+```bash
+python email_analyzer.py
+```
+
+- When prompted, enter the name of the file you wish to analyze. If you press Enter without typing a name, the script defaults to mbox-short.txt for rapid testing.
+
+## 🧠 Architectural Logic & Flow
+- The script is built on a straightforward, four-step pipeline:
+
+### 1. Fault-Tolerant File I/O
+- The program begins by attempting to open the user-defined file. It implements a try/except block to handle FileNotFoundError exceptions gracefully, preventing ugly tracebacks and providing a clean exit strategy if the file does not exist.
+
+### 2. Data Filtering & Tokenization
+- The script reads the file line by line (memory efficient for large files).
+- Target Identification: It uses `.startswith('From ')` to strictly filter lines indicating a sender. It intentionally ignores From: lines to avoid processing email bodies or metadata.
+- Tokenization: The target line is split into a list of words using `.split()`.
+- Sample Line: `From stephen.marquard@uct.ac.za Sat Jan  5 09:14:16 2008`
+- The time string (`09:14:16`) is consistently located at index [5].
+
+### 3. Double Splitting & Aggregation
+- Once the time string is isolated, a secondary `.split(':')` is applied to separate hours, minutes, and seconds.
+- The hour (index `[0]`) is extracted.
+- Histogram Logic: The script uses the dictionary `.get(key, default)` method to increment the count for that specific hour. If the hour doesn't exist in the dictionary yet, it initializes it to `0` and adds `1`.
+
+### 4. Chronological Sorting
+- Dictionaries are inherently unordered. To present the data chronologically:
+- `.items()` extracts the data into a list of `(hour, count)` tuples.
+- `sorted()` naturally orders these tuples based on their first element (the hour), ensuring a clean, ascending output from `00` to `23`.
+
+## 📊 Example Output 
+Enter file: mbox-short.txt
+```bash
+04 3
+06 1
+07 1
+09 2
+10 3
+11 6
+14 1
+15 2
+16 4
+17 2
+18 1
+19 1
+```
+
+## ⏱️ Performance Considerations
+- Time Complexity: $O(N \log N)$ in the worst case due to the final sorting operation, where $N$ is the number of unique hours (maximum 24). The file reading and counting process operates in $O(L)$ time, where $L$ is the number of lines in the file.
+- Space Complexity: $O(U)$ where $U$ is the number of unique hours (max 24), making it highly memory efficient as the entire file is never loaded into RAM at once.
