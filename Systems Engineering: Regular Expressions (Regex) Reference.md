@@ -195,3 +195,118 @@ formatted = re.sub(r"ID:(\w+), VAL:(\w+)", r"Status: \2 (Key: \1)", raw_config)
 print(formatted) 
 # Output: Status: active (Key: conf_01)
 ```
+
+---
+
+# 🛡️ Systems Engineering: Regular Expressions (Regex) Reference (Part 2)
+
+This section covers advanced implementations of the Python `re` module, focusing on precise data extraction, fault-tolerant parsing, stream manipulation, and complex pattern matching for enterprise-grade environments.
+
+---
+
+## 📐 1. Precise Quantitative Repetition (Numeric Bounds)
+
+While `*`, `+`, and `?` provide broad matching, systems engineering often requires strict boundary checks (e.g., validating MAC addresses, hashes, or exact-length identifiers). We use numeric qualifiers `{}` for absolute precision.
+
+| Syntax | Description | Use Case |
+| :--- | :--- | :--- |
+| `{n}` | Exactly *n* times. | `r"\b\w{5}\b"` (Matches exactly 5-character status codes). |
+| `{n,m}` | Between *n* and *m* times. | `r"\d{3,5}"` (Matches valid Port numbers up to 5 digits). |
+| `{n,}` | At least *n* times. | `r"\w{8,}"` (Enforcing minimum password or token length). |
+| `{,m}` | Up to *m* times. | `r"ERR_{,10}"` (Matching error codes with a maximum prefix length). |
+
+### Example: Strict Boundary Matching
+```python
+import re
+
+# Finding exact 5-character operational states
+print(re.findall(r"\b\w{5}\b", "State: ALIVE, Check: FATAL, Node: READY"))
+# Output: ['ALIVE', 'FATAL', 'READY']
+
+# Finding tokens of at least 16 characters
+print(re.findall(r"\w{16,}", "TOKEN: abcdef1234567890xyz REJECTED"))
+# Output: ['abcdef1234567890xyz']
+```
+
+## 🛡️ 2. Fault-Tolerant Data Extraction (Defensive Regex)
+### When parsing high-volume logs, the structure is never guaranteed. Accessing a captured group without verifying the match object will result in an AttributeError and crash the pipeline.
+
+- The Anti-Pattern (Unsafe Extraction)
+```python
+import re
+# This will crash if the log line is malformed and does not contain a PID in brackets.
+result = re.search(r"\[(\d+)\]", "kernel: memory fault at segment A")
+# print(result[1]) -> TypeError/AttributeError: 'NoneType' object is not subscriptable
+```
+
+### The Engineering Standard (Safe Extraction)
+- Always encapsulate Regex searches in functions that handle None returns gracefully.
+```python
+import re
+
+def extract_pid(log_line: str) -> str:
+    """Safely extracts a Process ID (PID) from standard syslog formats."""
+    # Pattern: Escaped brackets \[ \] encapsulating a digit capture group (\d+)
+    regex = r"\[(\d+)\]"
+    result = re.search(regex, log_line)
+    
+    # Defensive check: if no match, return a safe fallback (empty string)
+    if result is None:
+        return ""
+    
+    return result[1] # Return the first captured group
+
+# Production Tests
+print(extract_pid("July 31 07:51:48 srv-01 bad_process[12345]: ERROR")) # Output: 12345
+print(extract_pid("Warning: Unrecognized process spawned"))              # Output: (Empty String)
+```
+
+## 🔄 3. Advanced Stream Manipulation (`re.split` & `re.sub`)
+### Multi-Delimiter Parsing (`re.split`)
+- Standard `.split()` only accepts one delimiter. `re.split` allows you to break strings apart using complex patterns (e.g., splitting by semicolons, pipes, or dynamic whitespace).
+```python
+import re
+
+raw_telemetry = "NODE_01|TEMP:45C;STATUS:OK|LOAD:80%"
+# Split by either pipe (|) or semicolon (;)
+data_points = re.split(r"[|;]", raw_telemetry)
+print(data_points)
+# Output: ['NODE_01', 'TEMP:45C', 'STATUS:OK', 'LOAD:80%']
+```
+
+### Data Sanitization & PII Masking (`re.sub`)
+- Mandatory for GDPR/SOC2 compliance. `re.sub` identifies patterns and replaces them with redacted labels before logs hit the storage layer.
+```python
+import re
+
+# Swap "Key, Value" to "Value [Key]" format
+raw_config = "Database_Host, 192.168.1.50"
+# \1 captures the key, \2 captures the value
+formatted = re.sub(r"^([\w .-]*), ([\w .-]*)$", r"Target: \2 [Prop: \1]", raw_config)
+
+print(formatted)
+# Output: Target: 192.168.1.50 [Prop: Database_Host]
+```
+### Advanced Evaluation Logic
+- For highly complex string analysis, Regex provides logical operators and assertions.
+- Alternation (`|`) & Character Ranges (`[ ]`)
+- Alternation: Functions as a logical `OR`.
+- `r"region.*(us-east|eu-west|ap-south)`" matches specific cloud regions.
+- Ranges: Match specific character sets without hardcoding every option.
+- `r"[A-F0-9]`" matches valid hexadecimal characters (useful for MAC/IPv6).
+- `r"[0-9\-,.]`" matches digits, dashes, commas, or dots.
+
+## Lookaheads `(?=...)`
+- Lookaheads allow you to match a pattern only if it is followed by another specific pattern, without including that second pattern in the final extraction. Highly useful in CI/CD log parsing.
+```python
+import re
+
+ci_cd_output = "Build1-Passed, Build2-Passed, Build3-Failed, Build4-Passed"
+
+# Match "Build\d" ONLY IF it is followed by "-Passed"
+# The lookahead (?=-Passed) asserts the condition but isn't captured in the result.
+successful_builds = re.findall(r"(Build\d)(?=-Passed)", ci_cd_output)
+
+print(successful_builds)
+# Output: ['Build1', 'Build2', 'Build4']
+```
